@@ -7,13 +7,12 @@ import Vue from "vue/dist/vue.esm.browser";
 
 // let div1 = createElement('div',{attr:{id:'app'}},"Hello World");
 
-// let div2 = createTextVNode("Hello World2"); 
-console.log(compileToFunctions)
+// let div2 = createTextVNode("Hello World2");  
 
-compileToFunctions(`
-    <div >
-        <span>我是爱吃水果的人</span>
-    </div>
-`)
+const { render } = compileToFunctions(`<div><span>我是爱吃水果的人</span></div>`)
+
+new Vue({
+    render
+}).$mount("#app")
     
  

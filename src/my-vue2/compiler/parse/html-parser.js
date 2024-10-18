@@ -16,12 +16,34 @@ export function parseHTML(html,options){
         const textEnd = html.indexOf('<');
         // 说明匹配到 <  可能是开始标签（<）或者闭合标签（</）
         if(textEnd === 0){
+            // 解析结束标签
+            // 假设这里html是</span></div>
+            // endTagMatch 为["</span>","span"]
+            const endTagMatch = html.match(endTag)
+            if (endTagMatch) {
+                advance(endTagMatch[0].length)
+                options.end(endTagMatch[1]);
+                continue
+            } 
+
             // 解析开始标签
             const startTagMatch = parseStartTag()
-            if(startTagMatch){ 
+            if(startTagMatch){  
                 options.start(startTagMatch);
                 continue
-              }
+            }
+        }
+        // text表示文本 rest表示截取文本后的属于字符串 
+        let text
+        // 第一位不是标签 表明非元素 即为文本
+        if (textEnd >= 0) {
+            text = html.substring(0, textEnd)
+        }
+        if (text) {
+            advance(text.length)
+        }
+        if (options.chars && text) {
+            options.chars(text)
         }
     }
 
@@ -57,5 +79,8 @@ export function parseHTML(html,options){
             advance(end[0].length)
             return match;
         }
+    }
+
+    function parseEndTag(tagName) {
     }
 }

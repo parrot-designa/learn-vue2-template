@@ -1,16 +1,19 @@
  
 import { parse } from "./parse";
+import { generate } from "./codegen/index";
 
 export const createCompiler = () => {
     return {
-        compileToFunctions:(template, options, vm)=>{
+        compileToFunctions:(template)=>{ 
             // 1.生成AST
-            const ast = parse(template.trim(), options);
-            // // 2.AST生成 render
-            // const render = generate(ast, options);
-            // return {
-            //     render
-            // }
+            const ast = parse(template.trim());
+          
+            // 2.AST生成 render
+            const { render } = generate(ast); 
+
+            return {
+                render
+            }
         }
     }
 }
