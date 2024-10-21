@@ -68,29 +68,21 @@ render:new Function(`with(this){return _c('div',[
 
 在得到 模板 对应的 AST 对象以后。
  
-先转换为一段可以创建元素的字符串，然后再用 ```new Function(`with(this){return 函数体字符串}`)```生成对应的 render函数。
+先转换为一段可以创建元素的字符串，然后再用 ```new Function(`with(this){return 创建元素的字符串}`)```生成对应的 render函数。
 
 # 三、编译器结构编写
 
-在 vue 源码中，是使用 compileToFunctions 传入 template 生成 render函数的。
+在 vue 源码中，利用 compileToFunctions 传入 template参数 生成 render函数的。
 
 ```js
 const { render, staticRenderFns } = compileToFunctions(
-    template,
-    {
-      outputSourceRange: __DEV__,
-      shouldDecodeNewlines,
-      shouldDecodeNewlinesForHref,
-      delimiters: options.delimiters,
-      comments: options.comments
-    },
-    this
+  template
 )
 ```
 
 而 compileToFunctions 函数是使用 createCompiler 函数进行生成的。
 
-很容易写出以下代码。
+所以很容易写出以下代码。
 
 ```js
 // platforms/web/compiler.js
@@ -117,7 +109,9 @@ export const createCompiler = () => {
     }
 }
 ```
-所以我们只需要实现 parse 和 generate 即可。
+生成 ast 和 最终的 render 方法  都是在 compileToFunctions 内部实现的。
+
+我们只需要实现 parse 和 generate 即可。
 
 # 四、如何将 template模板 转化成 AST？  
 
@@ -143,7 +137,7 @@ parse 函数的作用是将模板变成 AST树。
 
  1. 每当我们遇到`<`时，会检查是开始左开标签`（如<div> 的 <）`还是闭合左开标签的`如（</div>）的<`： 
 
- 2. 如果是开始左开标签，说明这是一个开始标签。然后开始继续解析，直到遇到开始闭合标签。此时可以解析获得到该标签的属性名、属性信息等。将这些信息存储在对象中，然后将其推进堆栈中。因为此时还没遇到结束闭合标签，所以表示该标签还没有解析完毕。我们需要继续解析，当遇到一个开始标签时，重复执行步骤二；当遇到一个闭合标签是，执行步骤三。
+ 2. 如果是开始左开标签，说明这是一个开始标签。然后开始继续解析，直到遇到开始闭合标签。此时可以解析获得到该标签的属性名、属性信息等。将这些信息存储在对象中，然后将其推进堆栈中。因为此时还没遇到结束闭合标签，所以表示该标签还没有解析完毕。我们需要继续解析，当遇到一个开始标签时，重复执行步骤二；当遇到一个闭合标签时，执行步骤三。
 
  3. 如果是结束左开标签，说明这是一个结束标签。然后继续解析，直到遇到结束闭合标签。此时可以解析获得该标签的标签名。```然后看是否和栈顶元素保持一致。如果一致，则将栈顶元素存放在他父元素的 children属性下，然后直接移除栈顶元素。```此时标签的解析权移交给了他的上一个元素，即他的父元素。然后继续解析，当遇到一个开始标签时，执行步骤二；当遇到一个闭合标签是，重复执行步骤三。
 
@@ -190,9 +184,9 @@ let stack = [];
 
 ![alt text](image/2.jpg)
 
-* 解析步骤：
+* `解析步骤`：
 
-1. 初始化时指针索引移到第一位。解析发现 ```<```(且不是```</```)，意味碰到了元素开始标签。
+1. 初始化时指针索引`（ 红色虚线 ）`移到第一位。解析发现 ```<```(且不是```</```)，意味碰到了元素开始标签。
 
 2. 指针继续向后移动解析```<```元素开始标签以及对应的```>```元素结束标签。
 
@@ -200,7 +194,7 @@ let stack = [];
 
 4. 此时解析指针向后移动，移动到```<span>```标签的```<```开始标签上。
 
-* AST对象 & 堆栈数组 变化：
+* `AST对象 & 堆栈数组 变化`：
 
 因为这个div是第一个元素，也就是根对象，所以直接将信息放在 ast对象上。
 
@@ -221,9 +215,9 @@ let stack = [{tag:'div',type:1}]
 
 ![alt text](image/3.jpg)
 
-* 解析步骤：
+* `解析步骤`：
 
-1. 此时指针索引移到```<span>```第一位。解析发现 ```<```，且不是```</```，标识碰到了元素开始标签。
+1. 此时指针索引`（ 红色虚线 ）`移到```<span>```第一位。解析发现 ```<```，且不是```</```，标识碰到了元素开始标签。
 
 2. 指针继续向后移动解析```<```元素开始标签以及对应的```>```元素结束标签。
 
@@ -231,7 +225,7 @@ let stack = [{tag:'div',type:1}]
 
 4. 此时解析指针向后移动，移动到```<span>```标签内部的文字上。
 
-* AST对象变化：
+* `AST对象变化`：
 
 很明显span元素是 div元素的子元素。
 
@@ -255,21 +249,21 @@ let stack=[
 
 ![alt text](image/4.jpg)
 
-* 解析步骤：
+* `解析步骤`：
 
-1. 此时指针索引在span内文字的第一个位置，发现不是`<`标签，意味着可能是文字内容，文字内容在 AST中也被解析为一个节点，将来也会被放置在子元素中。
+1. 此时指针索引`（ 红色虚线 ）`在span内文字的第一个位置，发现不是`<`标签，意味着可能是文字内容，文字内容在 AST中也被解析为一个节点，将来也会被放置在子元素中。
 
 2. 指针继续向后移动解析，直至遇到了`<`元素。这表示文字解析完毕。
 
 3. 截取指针移动过的所有字符，当做栈顶处理中元素的子节点。此时栈中有一个元素 div和一个元素 span，栈顶依然是 span 元素。 所以 span元素依然还是当前正在解析的元素。 
 
-* AST对象变化： 
+* `AST对象变化`： 
 
 如果是文字内容，会直接将其推入其父元素的 children属性中。
 
 而此时他的父元素是栈顶元素 span。
 
-所以堆栈会这么变化。
+所以栈顶元素添加children属性。
 
 ```js
 let ast = {
@@ -293,17 +287,19 @@ let stack = [
 
 ![alt text](image/5.jpg)
 
-* 解析步骤：
+* `解析步骤`：
 
-1. 此时指针索引在```<```位上，然后发现该位置上的第二个标签是```/```，这意味着这个时候解析到了元素的闭合标签。
+1. 此时指针索引`（ 红色虚线 ）`在```<```位上，然后发现该位置上的第二个标签是```/```，这意味着这个时候解析到了元素的闭合标签。
 
 2. 指针继续移动，直至遇到```>```获取到元素对应的 ```tag为 span```。然后查看是否和栈顶元素一样，发现一样。说明此时 span标签解析完毕，说明 span元素就是 div元素的子元素，然后将span元素变成 div元素的子元素。最后移除栈顶span元素。此时栈中只有一个元素 div，则栈顶是 div 元素。所以现在div元素变成了现在正在解析的元素。
 
 3. 指针继续向后移动。
 
-* AST对象变化：
+* `AST对象变化`：
 
-span元素处理结束，此时
+span元素处理结束，需要移除栈顶元素。
+
+并将该元素放到其父元素 ast的 children 属性上。
 
 ```js
 let ast = {
@@ -332,17 +328,17 @@ let stack = [
  
 ![alt text](image/6.jpg)
 
-* 解析步骤：
+* `解析步骤`：
 
-1. 此时指针索引在```<```位上，然后发现该位置上的第二个标签是```/```，这意味着这个时候解析到了元素的闭合标签。
+1. 此时指针索引`（ 红色虚线 ）`在```<```位上，然后发现该位置上的第二个标签是```/```，这意味着这个时候解析到了元素的闭合标签。
 
 2. 指针继续移动，直至遇到```>```获取到元素对应的 ```tag为 div```。然后查看是否和栈顶元素一样，发现一样。然后移除栈顶div元素。
 
-> 此时栈中元素已经清空，代表已经解析完成。 
+> 此时栈中元素已经清空，代表当前元素已经解析完成。 
 
 3. 此时字符串已经解析完成。
 
-* AST对象变化：
+* `AST对象变化`：
 
 此时模板已经全部解析完毕。
 
@@ -386,7 +382,7 @@ parse函数就是用来将模板转化成 AST的核心函数。
 import { parseHTML } from "./html-parser";
 
 export function parse(template,options){
-
+    // 定义 ast 用作返回使用
     let rootAst = {};
     
     parseHTML(template); 
@@ -456,7 +452,7 @@ if(/元素开始正则/.test(html)){
 
 vue源码需要精确的匹配符号，所以使用正则：
 
-1. unicodeRegExp
+1. `unicodeRegExp`
 
 ```js
 // core/util/lang
@@ -468,7 +464,7 @@ export const unicodeRegExp =
 
 这里就是匹配标签名。
 
-2. ncname
+2. `ncname`
 
 ```js
 // source代表正则
@@ -476,7 +472,7 @@ const ncname = `[a-zA-Z_][\\-\\.0-9_a-zA-Z${unicodeRegExp.source}]*`
 ```
 用来匹配非限定名称，也就是不包含冒号的 XML 名称或属性名。其中首字母为必须为```a-z、A-Z、_```的其中一项。
 
-3. qnameCapture
+3. `qnameCapture`
 
 ```js
 const qnameCapture = `((?:${ncname}\\:)?${ncname})`
@@ -488,7 +484,7 @@ const qnameCapture = `((?:${ncname}\\:)?${ncname})`
 * 不带前缀的QName：例如element、attribute。
 * 带前缀的 QName：例如ns:element、prefiex:attr。
 
-4. startTagOpen
+4. `startTagOpen`
 
 ```js
 const startTagOpen = new RegExp(`^<${qnameCapture}`)
@@ -497,7 +493,7 @@ const startTagOpen = new RegExp(`^<${qnameCapture}`)
 
 这个正则可以匹配```<div>```、```<foo:bar>```等标签的开头部分。
 
-5. startTagClose 
+5. `startTagClose`
 
 ```js
 const startTagClose = /^\s*(\/?)>/
@@ -506,7 +502,7 @@ const startTagClose = /^\s*(\/?)>/
 
 这个正则可以匹配`>`、`/>`、`  div>`这四种情况。
 
-6. endTag
+6. `endTag`
 
 ```js
 const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`)
@@ -514,7 +510,7 @@ const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`)
 
 用来匹配 HTML 或 XML 中的结束标签（也称为闭合标签）。这个正则表达式的设计目的是为了识别一个标签的结束，并且捕获该标签的名称。
 
-7. attribute
+7. `attribute`
 
 用来匹配 HTML 或 XML 中的属性（attributes）。
 
@@ -522,7 +518,7 @@ const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`)
 const attribute =
   /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/
 ```
-8. dynamicArgAttribute
+8. `dynamicArgAttribute`
 
 用来匹配 Vue.js 中动态参数（动态参数化）的属性。
 
@@ -641,7 +637,7 @@ export function parseHTML(html,options){
 
 再在parse/index.js的 start回调中设置 ast。
 
-### 4.4.7 parse 处理开始标签
+### 4.4.7 parse && parseHTML 处理开始标签
 
 上文我们说到在 parseHTML模块处理完开始标签后就会调用 options.start 进行回调传入解析完的属性。 
  
@@ -770,7 +766,7 @@ if (endTagMatch) {
 
 判断如果此时栈为空，即表示元素处理完毕了，则需要构建 AST了。
 
-所以赋值 AST === currentElement。
+所以赋值 AST = currentElement。
 
 如果此时栈不为空，即表示元素还没有处理完毕，所以需要将当前要关闭的元素放到他父元素上，即现在的栈顶元素。
 
@@ -831,6 +827,8 @@ export function generate(
 2. `创建渲染函数`：使用 new Function 构造函数创建一个新的函数。这个新函数的函数体是通过字符串模板构造的，它使用了 with(this) 语法来确保函数内部的 this 指向正确的作用域，并且执行 return 语句来返回 code 所表示的内容。
 
 ## 5.2 genElement函数
+
+> genElement函数的作用就是生成创建元素的字符串。
 
 1. 初始化返回字符串：
 
@@ -945,6 +943,7 @@ function genNode(node) {
 1. 将模板字符串传入 parse函数，然后进行解析生成对应的 AST。
 2. 将 AST 传入 generate函数，然后生成对应的创建元素的字符串。
 
+我们这节主要是带大家实现了 parse和 generate的核心部分。
 
 > 本文中实现的模板编译没有考虑异常情况以及指令、data等。后续我们会慢慢补充。
 
